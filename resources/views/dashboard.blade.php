@@ -38,7 +38,9 @@
 
                         <div class="mt-4 text-left">
                             <div class="mt-6">
-                                <h3 class="text-lg font-semibold mb-2">History Scan</h3>
+                                <h3 class="text-lg font-semibold mb-2">History Scan
+                                    ({{ \Carbon\Carbon::now()->format('d M Y') }})
+                                </h3>
 
                                 @if ($todayLogs->isEmpty())
                                     <p class="text-sm text-gray-500">Belum ada scan hari ini.</p>
