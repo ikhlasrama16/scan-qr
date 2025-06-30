@@ -140,6 +140,7 @@
                 .then(data => {
                     alert("Data QR berhasil dikirim!");
                     closeModal();
+                    location.reload();
                 })
                 .catch(error => {
                     alert("Gagal mengirim data QR: " + error.message);
