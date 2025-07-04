@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExportController;
 use App\Http\Controllers\LogQrController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +26,12 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->name('dashboard');
 
 Route::post('/log-qr', [LogQrController::class, 'store'])->middleware('auth');
+
+Route::get('/ambil-data', [ExportController::class, 'index'])->name('export');
+Route::get('/ambil-data/all', [ExportController::class, 'exportAll'])->name('export.all');
+Route::get('/ambil-data/range', [ExportController::class, 'exportRange'])->name('export.qrlog.range');
+Route::get('/ambil-data/preset', [ExportController::class, 'exportPreset'])->name('export.qrlog.preset');
+
 
 
 Route::middleware('auth')->group(function () {
