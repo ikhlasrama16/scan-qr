@@ -27,7 +27,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
 
 Route::post('/log-qr', [LogQrController::class, 'store'])->middleware('auth');
 
-Route::get('/ambil-data', [ExportController::class, 'index'])->name('export');
+Route::get('/ambil-data', [ExportController::class, 'indexPreset'])->name('export');
 Route::get('/ambil-data/all', [ExportController::class, 'exportAll'])->name('export.all');
 Route::get('/ambil-data/range', [ExportController::class, 'exportRange'])->name('export.qrlog.range');
 Route::get('/ambil-data/preset', [ExportController::class, 'exportPreset'])->name('export.qrlog.preset');

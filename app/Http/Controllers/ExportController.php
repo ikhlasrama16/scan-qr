@@ -11,15 +11,46 @@ use Symfony\Component\HttpFoundation\Request;
 
 class ExportController extends Controller
 {
-    public function index()
+    public function indexPreset()
     {
-        return view('export');
+        // Ambil semua minggu unik
+        $dates = DB::table('log_qr')
+            ->select(DB::raw('YEAR(created_at) as year'), DB::raw('WEEK(created_at, 1) as week'), DB::raw('MIN(created_at) as sample_date'))
+            ->groupBy('year', 'week')
+            ->orderBy('year', 'desc')
+            ->orderBy('week', 'desc')
+            ->get()
+            ->map(function ($item) {
+                $date = Carbon::parse($item->sample_date);
+                $monthName = $date->locale('id')->isoFormat('MMMM'); // Nama bulan dalam bahasa Indonesia
+                $weekOfMonth = ceil($date->weekOfMonth); // Hitung minggu ke-x dalam bulan
+                $item->label = "Minggu ke-{$weekOfMonth} {$monthName} {$item->year}";
+                return $item;
+            });
+
+        // Ambil semua bulan unik
+        $months = DB::table('log_qr')
+            ->select(DB::raw('YEAR(created_at) as year'), DB::raw('MONTH(created_at) as month'))
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->get()
+            ->map(function ($item) {
+                $date = Carbon::createFromDate($item->year, $item->month, 1);
+                $item->label = $date->locale('id')->isoFormat('MMMM YYYY');
+                return $item;
+            });
+
+        return view('export', compact('dates', 'months'));
     }
+
+
 
     public function exportAll()
     {
         return $this->downloadExcel(DB::table('log_qr')->get(), 'log_qr_all.xlsx');
     }
+
 
     public function exportRange(Request $request)
     {
@@ -50,35 +81,26 @@ class ExportController extends Controller
     public function exportPreset(Request $request)
     {
         $range = $request->input('range');
-        $now = Carbon::now();
 
-        switch ($range) {
-            case 'today':
-                $from = $now->copy()->startOfDay();
-                $to = $now->copy()->endOfDay();
-                $filename = 'log_qr_' . $now->format('Ymd') . '_today.xlsx';
-                break;
-
-            case 'week':
-                $from = $now->copy()->startOfWeek();
-                $to = $now->copy()->endOfWeek();
-                $filename = 'log_qr_week_' . $from->format('Ymd') . '_to_' . $to->format('Ymd') . '.xlsx';
-                break;
-
-            case 'month':
-                $from = $now->copy()->startOfMonth();
-                $to = $now->copy()->endOfMonth();
-                $filename = 'log_qr_month_' . $from->format('Ym') . '.xlsx';
-                break;
-
-            default:
-                return back()->with('error', 'Rentang waktu tidak valid.');
+        if (str_starts_with($range, 'week-')) {
+            [$prefix, $year, $week] = explode('-', $range);
+            $from = Carbon::now()->setISODate($year, $week)->startOfWeek();
+            $to = Carbon::now()->setISODate($year, $week)->endOfWeek();
+            $filename = "log_qr_week_{$year}_{$week}.xlsx";
+        } elseif (str_starts_with($range, 'month-')) {
+            [$prefix, $year, $month] = explode('-', $range);
+            $from = Carbon::create($year, $month, 1)->startOfMonth();
+            $to = Carbon::create($year, $month, 1)->endOfMonth();
+            $filename = "log_qr_month_{$year}_{$month}.xlsx";
+        } else {
+            return back()->with('error', 'Rentang preset tidak valid.');
         }
 
         $data = DB::table('log_qr')
             ->whereBetween('created_at', [$from, $to])
             ->orderBy('created_at', 'asc')
             ->get();
+
         return $this->downloadExcel($data, $filename);
     }
 
@@ -113,44 +135,4 @@ class ExportController extends Controller
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
-
-
-    // public function export()
-    // {
-    //     // 1. Ambil data dari database (contoh: dari tabel log_qr)
-    //     $data = DB::table('log_qr')->get();
-
-    //     // 2. Buat spreadsheet
-    //     $spreadsheet = new Spreadsheet();
-    //     $sheet = $spreadsheet->getActiveSheet();
-
-    //     // 3. Header kolom
-    //     $sheet->setCellValue('A1', 'Nama');
-    //     $sheet->setCellValue('B1', 'Kantor');
-    //     $sheet->setCellValue('C1', 'Lokasi Scan');
-    //     $sheet->setCellValue('D1', 'Keterangan');
-    //     $sheet->setCellValue('E1', 'Waktu');
-
-    //     // 4. Tulis data
-    //     $row = 2;
-    //     foreach ($data as $log) {
-    //         $sheet->setCellValue("A{$row}", $log->nama ?? '-');
-    //         $sheet->setCellValue("B{$row}", $log->kantor ?? '-');
-    //         $sheet->setCellValue("C{$row}", $log->lokasi_scan);
-    //         $sheet->setCellValue("D{$row}", $log->keterangan);
-    //         $sheet->setCellValue("E{$row}", $log->created_at);
-    //         $row++;
-    //     }
-
-    //     // 5. Buat writer dan response
-    //     $writer = new Xlsx($spreadsheet);
-    //     $filename = 'log_qr_export_' . date('Ymd_His') . '.xlsx';
-
-    //     // 6. Output file Excel ke browser
-    //     return response()->streamDownload(function () use ($writer) {
-    //         $writer->save('php://output');
-    //     }, $filename, [
-    //         'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    //     ]);
-    // }
 }
